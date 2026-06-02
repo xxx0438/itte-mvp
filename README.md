@@ -1,16 +1,21 @@
 # ITTE MVP
 
-ITTE is a self-evolving risk gate for AI engineering changes.
+Self-evolving risk brain for AI engineering.
 
-It intercepts risky prompt, config, model, policy, tool, or code changes before deployment.
+## Capabilities
 
-## Features
-
-- Pre-deploy AI risk evaluation
-- Memory of past changes and outcomes
-- Similar historical incident detection
-- CI/CD compatible CLI
-- SQLite local storage
+- Pre-deploy risk gate
+- Local open-source LLM judge
+- FAISS vector memory
+- Public AI risk cold-start memory
+- Private incident memory
+- Senior engineer judgment distillation
+- Memory decay / metabolizing
+- Org risk profile
+- Compliance templates
+- GitHub / GitLab webhooks
+- Jira / Linear approval hook
+- Private risk model training
 
 ## Install
 
