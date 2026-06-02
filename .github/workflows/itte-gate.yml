@@ -1,0 +1,53 @@
+name: ITTE Risk Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  itte-risk-gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate diff
+        run: |
+          git fetch origin main
+          git diff origin/main...HEAD > change.diff
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install CLI dependency
+        run: |
+          pip install requests
+
+      - name: Create metadata
+        run: |
+          cat > metadata.json <<'EOF'
+          {
+            "source": "github_action",
+            "rollback_plan": "Revert pull request",
+            "approval_ticket": "",
+            "touches_customer_data": false,
+            "touches_health_data": false,
+            "agent_can_execute": false,
+            "frameworks": ["OWASP_LLM_TOP10", "SOC2"]
+          }
+          EOF
+
+      - name: Run ITTE
+        run: |
+          python cli.py \
+            --server "${{ secrets.ITTE_SERVER_URL }}" \
+            --org "${{ github.repository_owner }}" \
+            --repo "${{ github.repository }}" \
+            --author "${{ github.actor }}" \
+            --environment production \
+            --change-type code \
+            --title "${{ github.event.pull_request.title }}" \
+            --diff-file change.diff \
+            --metadata-file metadata.json
