@@ -41,7 +41,7 @@ jobs:
 
       - name: Run ITTE
         run: |
-          python cli.py \
+          python -m itte.cli \
             --server "${{ secrets.ITTE_SERVER_URL }}" \
             --org "${{ github.repository_owner }}" \
             --repo "${{ github.repository }}" \
