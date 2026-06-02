@@ -4,18 +4,17 @@ import sys
 import requests
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="ITTE CLI - pre-deployment AI risk gate"
-    )
+    parser = argparse.ArgumentParser(description="ITTE CLI risk gate")
 
     parser.add_argument("--server", default="http://localhost:8000")
+    parser.add_argument("--org", default="default")
     parser.add_argument("--repo", required=True)
     parser.add_argument("--author", required=True)
     parser.add_argument("--environment", default="production")
     parser.add_argument("--change-type", required=True)
     parser.add_argument("--title", required=True)
     parser.add_argument("--diff-file", required=True)
-    parser.add_argument("--metadata-file", default=None)
+    parser.add_argument("--metadata-file")
 
     args = parser.parse_args()
 
@@ -23,70 +22,67 @@ def main():
         diff = f.read()
 
     metadata = {}
-
     if args.metadata_file:
         with open(args.metadata_file, "r", encoding="utf-8") as f:
             metadata = json.load(f)
 
     payload = {
+        "org": args.org,
         "repo": args.repo,
         "author": args.author,
         "environment": args.environment,
         "change_type": args.change_type,
         "title": args.title,
         "diff": diff,
-        "metadata": metadata,
+        "metadata": metadata
     }
 
     url = args.server.rstrip("/") + "/risk/evaluate"
 
     try:
-        res = requests.post(url, json=payload, timeout=30)
+        res = requests.post(url, json=payload, timeout=60)
     except requests.RequestException as e:
-        print(f"ITTE error: failed to reach server: {e}", file=sys.stderr)
+        print(f"ITTE error: {e}", file=sys.stderr)
         sys.exit(2)
 
     if res.status_code >= 400:
-        print(f"ITTE error: {res.status_code} {res.text}", file=sys.stderr)
+        print(res.text, file=sys.stderr)
         sys.exit(2)
 
-    result = res.json()
+    data = res.json()
 
-    print("")
-    print("========== ITTE Risk Gate ==========")
-    print(f"Change ID : {result['change_id']}")
-    print(f"Decision  : {result['decision'].upper()}")
-    print(f"Risk Score: {result['risk_score']}")
-    print("")
-    print("Reasons:")
-    for reason in result["reasons"]:
-        print(f"- {reason}")
+    print("\n========== ITTE Risk Gate ==========")
+    print(f"Change ID : {data['change_id']}")
+    print(f"Decision  : {data['decision'].upper()}")
+    print(f"Risk Score: {data['risk_score']}")
+    if data.get("approval_id"):
+        print(f"Approval  : #{data['approval_id']}")
 
-    if result["similar_incidents"]:
-        print("")
-        print("Similar historical incidents:")
-        for item in result["similar_incidents"]:
+    print("\nReasons:")
+    for r in data["reasons"]:
+        print(f"- {r}")
+
+    if data["compliance_findings"]:
+        print("\nCompliance Findings:")
+        for f in data["compliance_findings"]:
+            print(f"- [{f['framework']}] {f['severity']} | {f['title']}")
+
+    if data["similar_memory"]:
+        print("\nSimilar Memory:")
+        for m in data["similar_memory"]:
             print(
-                f"- Change #{item['change_id']} | "
-                f"severity={item['severity']} | "
-                f"similarity={item['similarity']} | "
-                f"title={item['title']}"
+                f"- memory #{m['memory_id']} | "
+                f"source={m['source']} | "
+                f"severity={m['severity']} | "
+                f"similarity={m['similarity']} | "
+                f"boost={m['risk_boost']}"
             )
 
-    print("====================================")
-    print("")
+    print("====================================\n")
 
-    decision = result["decision"]
-
-    if decision == "block":
-        print("Deployment blocked by ITTE.")
+    if data["decision"] in ["review", "block"]:
         sys.exit(1)
 
-    if decision == "review":
-        print("Deployment requires human review.")
-        sys.exit(1)
-
-    print("Deployment allowed by ITTE.")
     sys.exit(0)
 
 if __name__ == "__main__":
