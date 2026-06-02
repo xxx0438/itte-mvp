@@ -89,19 +89,20 @@ class VectorStore:
             return False
 
     async def initialize(self, memory_rows: List[Dict]):
-        async with self.lock:
-            loaded = self._load_from_disk()
+    async with self.lock:
+        loaded = self._load_from_disk()
+        existing_ids = set(self.ids)
 
-            if not loaded:
-                logger.info("faiss_index_not_found rebuilding_from_db=true")
-                await self.rebuild(memory_rows)
-                return
+    if not loaded:
+        logger.info("faiss_index_not_found rebuilding_from_db=true")
+        await self.rebuild(memory_rows)
+        return
 
-            missing = [r for r in memory_rows if int(r["id"]) not in self.ids]
+    missing = [r for r in memory_rows if int(r["id"]) not in existing_ids]
 
-            if missing:
-                logger.info(f"faiss_index_missing_rows count={len(missing)}")
-                await self.add_many(missing, save=True)
+    if missing:
+        logger.info(f"faiss_index_missing_rows count={len(missing)}")
+        await self.add_many(missing, save=True)
 
     async def rebuild(self, memory_rows: List[Dict]):
         async with self.lock:
