@@ -1,0 +1,60 @@
+services:
+  itte:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: itte
+    env_file:
+      - .env
+    environment:
+      ITTE_DB_PATH: /app/runtime/itte.db
+      ITTE_INDEX_DIR: /app/.itte_index
+      HF_HOME: /app/.cache/huggingface
+      SENTENCE_TRANSFORMERS_HOME: /app/.cache/sentence_transformers
+    ports:
+      - "8000:8000"
+    volumes:
+      - itte_runtime:/app/runtime
+      - itte_index:/app/.itte_index
+      - itte_cache:/app/.cache
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 90s
+      retries: 3
+
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: itte-seed
+    env_file:
+      - .env
+    environment:
+      ITTE_DB_PATH: /app/runtime/itte.db
+      ITTE_INDEX_DIR: /app/.itte_index
+    command:
+      [
+        "python",
+        "scripts/seed_public_data.py",
+        "--server",
+        "http://itte:8000",
+        "--file",
+        "data/public_ai_risk_seed.jsonl"
+      ]
+    depends_on:
+      itte:
+        condition: service_healthy
+    volumes:
+      - itte_runtime:/app/runtime
+      - itte_index:/app/.itte_index
+      - itte_cache:/app/.cache
+    profiles:
+      - seed
+
+volumes:
+  itte_runtime:
+  itte_index:
+  itte_cache:
